@@ -1,22 +1,36 @@
 {
   "name": "next-frontend",
-  "version": "0.1.0",
+  "version": "10.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "format": "prettier --write \"{app,demo,layout,types}/**/*.{js,ts,tsx,d.ts}\"",
     "lint": "next lint"
   },
   "dependencies": {
-    "react": "19.0.0-rc-69d4b800-20241021",
-    "react-dom": "19.0.0-rc-69d4b800-20241021",
-    "next": "15.0.1"
+    "@types/node": "20.3.1",
+    "@types/react": "18.2.12",
+    "@types/react-dom": "18.2.5",
+    "axios": "^1.7.7",
+    "chart.js": "4.2.1",
+    "next": "^15.0.2",
+    "next-frontend": "file:",
+    "primeflex": "^3.3.1",
+    "primeicons": "^6.0.1",
+    "primereact": "10.2.1",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "react-transition-group": "^4.4.5",
+    "sakai-react": "file:",
+    "sass-loader": "^16.0.3",
+    "typescript": "5.1.3"
   },
   "devDependencies": {
-    "typescript": "^5",
-    "@types/node": "^20",
-    "@types/react": "^18",
-    "@types/react-dom": "^18"
+    "eslint": "8.43.0",
+    "eslint-config-next": "13.4.6",
+    "prettier": "^2.8.8",
+    "sass": "^1.80.6"
   }
 }
