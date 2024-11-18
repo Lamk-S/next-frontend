@@ -38,7 +38,7 @@ const AppMenu = () => {
                 {
                     label: 'Mantener Activo',
                     icon: 'pi pi-fw pi-cog',
-                    to: '/pages/activo/estado'
+                    to: '/pages/cambioEstado'
                 }
             ]
         }

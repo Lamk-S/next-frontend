@@ -224,9 +224,8 @@ const ActivoPage = () => {
                         <Column field="estado" header="Estado" sortable></Column>
                         <Column field="observaciones" header="Observaciones" sortable></Column>
                         <Column
-                            field="ambiente"
+                            field="ambiente.codigo"
                             header="Ambiente"
-                            body={(rowData) => ambientes.find((ambiente) => ambiente.id === rowData.ambiente)?.codigo || 'N/A'}
                             sortable
                         ></Column>
                         <Column
