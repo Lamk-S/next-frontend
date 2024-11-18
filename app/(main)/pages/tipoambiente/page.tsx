@@ -66,6 +66,7 @@ const TipoAmbientePage = () => {
                     updatedTipoAmbientes = tipoAmbientes.map((ta) => (ta.id === response.data.id ? response.data : ta));
                     toast.current?.show({ severity: 'success', summary: 'Successful', detail: 'Tipo Ambiente Updated', life: 3000 });
                 } else {
+                    console.log(tipoAmbiente)
                     const response = await createTipoAmbiente(tipoAmbiente);
                     updatedTipoAmbientes = [...tipoAmbientes, response.data];
                     toast.current?.show({ severity: 'success', summary: 'Successful', detail: 'Tipo Ambiente Created', life: 3000 });

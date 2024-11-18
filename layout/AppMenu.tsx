@@ -29,6 +29,16 @@ const AppMenu = () => {
                     label: 'Ambiente',
                     icon: 'pi pi-fw pi-cog',
                     to: '/pages/ambiente'
+                },
+                {
+                    label: 'Gestionar Activo',
+                    icon: 'pi pi-fw pi-cog',
+                    to: '/pages/activo'
+                },
+                {
+                    label: 'Mantener Activo',
+                    icon: 'pi pi-fw pi-cog',
+                    to: '/pages/activo/estado'
                 }
             ]
         }

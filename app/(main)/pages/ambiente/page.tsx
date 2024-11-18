@@ -10,41 +10,89 @@ import { Toast } from 'primereact/toast';
 import { Toolbar } from 'primereact/toolbar';
 import { classNames } from 'primereact/utils';
 import axios, { AxiosError } from 'axios';
-import { getAmbientes, createAmbiente, updateAmbiente, deleteAmbiente, Ambiente } from '@/app/api/ambienteApi';
+import { getAmbientes, createAmbiente, updateAmbiente, deleteAmbiente, Ambiente} from '@/app/api/ambienteApi';
+import { getTipoAmbientes} from '@/app/api/tipoAmbienteApi';
+import { getEscuelas, getPeriodos, getDepartamentos, Departamento} from '@/app/api/auxiliarApi';
 import { Dropdown } from 'primereact/dropdown';
+import { InputNumber } from 'primereact/inputnumber';
 
 const AmbientePage = () => {
+    
+    interface TipoAmbiente {
+        id: number;
+        nombre: string;
+        descripcion: string;
+    }
+
+    interface Ambiente1 {
+        id: number;
+        codigo: string;
+        escuela: any | null; // Si `escuela` tiene una estructura específica, defínela; en caso contrario, usa `any | null`.
+        departamento: Departamento | null;
+        ubicacion: string;
+        capacidad: number;
+        tipo_ambiente: TipoAmbiente | null;
+    }
+
     const emptyAmbiente: Ambiente = {
         id: 0,
         codigo: '',
+        tipo_ambiente_id: null, // Almacena solo el ID
+        escuela_id: null, // Puede ser null si no está relacionado
+        departamento_id: null, // Puede ser null si no está relacionado
         ubicacion: '',
         capacidad: 0,
-        departamento: null,
-        escuela: null,
-        tipo_ambiente: null,
     };
 
-    const [ambientes, setAmbientes] = useState<Ambiente[]>([]);
+    
+
+    const [ambientes, setAmbientes] = useState<Ambiente1[]>([]);
+    const [escuelas, setEscuelas] = useState([]);
+    const [departamentos, setDepartamentos] = useState([]);
     const [ambienteDialog, setAmbienteDialog] = useState(false);
     const [deleteAmbienteDialog, setDeleteAmbienteDialog] = useState(false);
     const [ambiente, setAmbiente] = useState<Ambiente>(emptyAmbiente);
-    const [selectedAmbientes, setSelectedAmbientes] = useState<Ambiente[]>([]);
+    const [tipoAmbientes, setTipoAmbientes] = useState([]); // Nuevo estado para TipoAmbientes
     const [submitted, setSubmitted] = useState(false);
-    const [globalFilter, setGlobalFilter] = useState('');
     const toast = useRef<Toast>(null);
-    const dt = useRef<DataTable<Ambiente[]>>(null); // Reference for DataTable export
+    const dt = useRef<DataTable<Ambiente1[]>>(null); // Reference for DataTable export
 
     useEffect(() => {
         fetchAmbientes();
+        fetchAuxiliaryData();
     }, []);
 
     const fetchAmbientes = async () => {
         try {
             const response = await getAmbientes();
-            setAmbientes(response.data.results);
+            setAmbientes(response.data.results); // Asegúrate de que `results` contiene un array
         } catch (error) {
-            console.error("Error fetching data:", error);
-            toast.current?.show({ severity: 'error', summary: 'Error', detail: 'Could not load data.' });
+            console.error('Error fetching data:', error);
+            toast.current?.show({
+                severity: 'error',
+                summary: 'Error',
+                detail: 'Could not load ambientes.',
+            });
+        }
+    };
+
+    const fetchAuxiliaryData = async () => {
+        try {
+            const [escuelasRes, departamentosRes, tipoAmbientesRes] = await Promise.all([getEscuelas(), getDepartamentos(), getTipoAmbientes()]);
+            console.log(escuelasRes.data.results);
+            console.log(tipoAmbientesRes.data.results);
+            setEscuelas(escuelasRes.data.results); // Ajusta según la estructura de respuesta
+            setDepartamentos(departamentosRes.data.results); // Ajusta según la estructura de respuesta
+            setTipoAmbientes(tipoAmbientesRes.data.results);
+            console.log(escuelas);
+            console.log(tipoAmbientes);
+        } catch (error) {
+            console.error('Error fetching auxiliary data:', error);
+            toast.current?.show({
+                severity: 'error',
+                summary: 'Error',
+                detail: 'Could not load auxiliary data.',
+            });
         }
     };
 
@@ -65,52 +113,65 @@ const AmbientePage = () => {
 
     const saveAmbiente = async () => {
         setSubmitted(true);
-    
-        const formattedAmbiente = {
-            ...ambiente,
-            capacidad: ambiente.capacidad || 0,
-            departamento: typeof ambiente.departamento === 'object' && ambiente.departamento !== null ? ambiente.departamento.id : ambiente.departamento,
-            escuela: typeof ambiente.escuela === 'object' && ambiente.escuela !== null ? ambiente.escuela.id : ambiente.escuela,
-            tipo_ambiente: typeof ambiente.tipo_ambiente === 'object' && ambiente.tipo_ambiente !== null ? ambiente.tipo_ambiente.id : ambiente.tipo_ambiente,
-        };
-    
-        if (formattedAmbiente.codigo.trim()) {
+        console.log(ambiente);
+        if (ambiente.codigo.trim() && ambiente.tipo_ambiente_id) {
             try {
                 let updatedAmbientes;
-                if (formattedAmbiente.id) {
-                    const response = await updateAmbiente(formattedAmbiente.id, formattedAmbiente);
+                if (ambiente.id) {
+                    const response = await updateAmbiente(ambiente.id, ambiente);
                     updatedAmbientes = ambientes.map((a) => (a.id === response.data.id ? response.data : a));
-                    toast.current?.show({ severity: 'success', summary: 'Successful', detail: 'Ambiente Updated', life: 3000 });
+                    toast.current?.show({
+                        severity: 'success',
+                        summary: 'Successful',
+                        detail: 'Ambiente Updated',
+                        life: 3000,
+                    });
                 } else {
-                    const response = await createAmbiente(formattedAmbiente);
+                    const response = await createAmbiente(ambiente);
                     updatedAmbientes = [...ambientes, response.data];
-                    toast.current?.show({ severity: 'success', summary: 'Successful', detail: 'Ambiente Created', life: 3000 });
+                    toast.current?.show({
+                        severity: 'success',
+                        summary: 'Successful',
+                        detail: 'Ambiente Created',
+                        life: 3000,
+                    });
                 }
                 setAmbientes(updatedAmbientes);
                 setAmbienteDialog(false);
                 setAmbiente(emptyAmbiente);
-            } catch (error: unknown) {
-                if (axios.isAxiosError(error)) {  // Check if error is an AxiosError
-                    // You can now safely access error.response
-                    const responseData = error.response?.data; 
-                    console.error("Backend error details:", responseData);
-                    toast.current?.show({ severity: 'error', summary: 'Error', detail: responseData?.message || 'Could not save data.' });
-                } else {
-                    // Handle other unexpected errors
-                    console.error("Unexpected error:", error);
-                    toast.current?.show({ severity: 'error', summary: 'Error', detail: 'An unexpected error occurred.' });
-                }
+            } catch (error) {
+                console.error('Error saving data:', error);
+                toast.current?.show({
+                    severity: 'error',
+                    summary: 'Error',
+                    detail: 'Could not save data.',
+                });
             }
         }
     };
 
-    const editAmbiente = (ambiente: Ambiente) => {
-        setAmbiente({ ...ambiente });
+    const transformAmbiente1ToAmbiente = (ambiente1: Ambiente1): Ambiente => {
+        return {
+            id: ambiente1.id,
+            codigo: ambiente1.codigo,
+            tipo_ambiente_id: ambiente1.tipo_ambiente ? ambiente1.tipo_ambiente.id : null, // Extrae solo el ID
+            escuela_id: ambiente1.escuela ? ambiente1.escuela.id : null, // Extrae solo el ID
+            departamento_id: ambiente1.departamento ? ambiente1.departamento.id : null, // Extrae solo el ID
+            ubicacion: ambiente1.ubicacion,
+            capacidad: ambiente1.capacidad,
+        };
+    };
+
+    const editAmbiente = (ambiente: Ambiente1) => {
+        console.log(ambiente);
+        const transformedAmbiente = transformAmbiente1ToAmbiente(ambiente);
+        setAmbiente(transformedAmbiente);
         setAmbienteDialog(true);
     };
 
-    const confirmDeleteAmbiente = (ambiente: Ambiente) => {
-        setAmbiente(ambiente);
+    const confirmDeleteAmbiente = (ambiente: Ambiente1) => {
+        const transformedAmbiente = transformAmbiente1ToAmbiente(ambiente);
+        setAmbiente(transformedAmbiente);
         setDeleteAmbienteDialog(true);
     };
 
@@ -120,39 +181,52 @@ const AmbientePage = () => {
             setAmbientes(ambientes.filter((a) => a.id !== ambiente.id));
             setDeleteAmbienteDialog(false);
             setAmbiente(emptyAmbiente);
-            toast.current?.show({ severity: 'success', summary: 'Successful', detail: 'Ambiente Deleted', life: 3000 });
+            toast.current?.show({
+                severity: 'success',
+                summary: 'Successful',
+                detail: 'Ambiente Deleted',
+                life: 3000,
+            });
         } catch (error) {
-            console.error("Error deleting data:", error);
-            toast.current?.show({ severity: 'error', summary: 'Error', detail: 'Could not delete data.' });
+            console.error('Error deleting data:', error);
+            toast.current?.show({
+                severity: 'error',
+                summary: 'Error',
+                detail: 'Could not delete data.',
+            });
         }
     };
 
-    const onInputChange = (e: React.ChangeEvent<HTMLInputElement>, name: string) => {
-        const val = (e.target && e.target.value) || '';
+    const onInputChange = (e: any, name: string) => {
+        const val = e.value !== undefined ? e.value : e.target.value; // Maneja ambos casos
         setAmbiente({ ...ambiente, [name]: val });
+    };
+
+    const onDropdownChange = (e: { value: any }, name: string) => {
+        setAmbiente({ ...ambiente, [name]: e.value });
     };
 
     const exportCSV = () => {
         dt.current?.exportCSV();
     };
 
-    const confirmDeleteSelected = () => {
-        setDeleteAmbienteDialog(true);
-    };
+    // const confirmDeleteSelected = () => {
+    //     setDeleteAmbienteDialog(true);
+    // };
 
-    const leftToolbarTemplate = () => {
-        return (
-            <React.Fragment>
-                <Button label="New" icon="pi pi-plus" severity="success" className="mr-2" onClick={openNew} />
-                <Button label="Delete" icon="pi pi-trash" severity="danger" onClick={confirmDeleteSelected} disabled={!selectedAmbientes.length} />
-            </React.Fragment>
-        );
-    };
+    // const leftToolbarTemplate = () => {
+    //     return (
+    //         <React.Fragment>
+    //             <Button label="New" icon="pi pi-plus" severity="success" className="mr-2" onClick={openNew} />
+    //             <Button label="Delete" icon="pi pi-trash" severity="danger" onClick={confirmDeleteSelected} disabled={!selectedAmbientes.length} />
+    //         </React.Fragment>
+    //     );
+    // };
 
     const rightToolbarTemplate = () => {
         return (
             <React.Fragment>
-                <FileUpload mode="basic" accept="image/*" maxFileSize={1000000} chooseLabel="Import" className="mr-2 inline-block" />
+                {/* <FileUpload mode="basic" accept="image/*" maxFileSize={1000000} chooseLabel="Import" className="mr-2 inline-block" /> */}
                 <Button label="Export" icon="pi pi-upload" severity="help" onClick={exportCSV} />
             </React.Fragment>
         );
@@ -177,28 +251,26 @@ const AmbientePage = () => {
             <div className="col-12">
                 <div className="card">
                     <Toast ref={toast} />
-                    <Toolbar className="mb-4" left={leftToolbarTemplate} right={rightToolbarTemplate}></Toolbar>
+                    <Toolbar
+                        className="mb-4"
+                        right={rightToolbarTemplate}
+                        left={<Button label="New" icon="pi pi-plus" severity="success" onClick={openNew} />}
+                    ></Toolbar>
 
                     <DataTable
                         ref={dt}
                         value={ambientes}
-                        selectionMode="multiple"
-                        selection={selectedAmbientes}
-                        onSelectionChange={(e) => setSelectedAmbientes(e.value as Ambiente[])}
                         dataKey="id"
                         paginator
                         rows={10}
-                        rowsPerPageOptions={[5, 10, 25]}
                         className="datatable-responsive"
-                        paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
-                        currentPageReportTemplate="Showing {first} to {last} of {totalRecords} ambientes"
-                        globalFilter={globalFilter}
-                        header={<h5 className="m-0">Manage Ambientes</h5>}
                         responsiveLayout="scroll"
                         emptyMessage="No data found."
                     >
-                        <Column selectionMode="multiple" headerStyle={{ width: '3rem' }}></Column>
                         <Column field="codigo" header="Código" sortable></Column>
+                        <Column field="tipo_ambiente.nombre" header="Tipo Ambiente" sortable></Column>
+                        {/* <Column field="escuela.nombre" header="Escuela" sortable></Column> */}
+                        <Column field="departamento.departamento" header="Departamento" sortable></Column>
                         <Column field="ubicacion" header="Ubicación" sortable></Column>
                         <Column field="capacidad" header="Capacidad" sortable></Column>
                         <Column
@@ -212,18 +284,63 @@ const AmbientePage = () => {
                         ></Column>
                     </DataTable>
 
-                    <Dialog visible={ambienteDialog} style={{ width: '450px' }} header="Ambiente Details" modal footer={ambienteDialogFooter} onHide={hideDialog}>
+                    <Dialog
+                        visible={ambienteDialog}
+                        style={{ width: '450px' }}
+                        header="Ambiente Details"
+                        modal
+                        footer={ambienteDialogFooter}
+                        onHide={hideDialog}
+                    >
                         <div className="field">
                             <label htmlFor="codigo">Código</label>
-                            <InputText id="codigo" value={ambiente.codigo} onChange={(e) => onInputChange(e, 'codigo')} required autoFocus className={classNames({ 'p-invalid': submitted && !ambiente.codigo })} />
-                            {submitted && !ambiente.codigo && <small className="p-invalid">Código is required.</small>}
+                            <InputText id="codigo" value={ambiente.codigo} onChange={(e) => onInputChange(e, 'codigo')} required />
+                        </div>
+                        <div className="field">
+                            <label htmlFor="tipo_ambiente">Tipo Ambiente</label>
+                            <Dropdown
+                                id="tipo_ambiente"
+                                value={ambiente.tipo_ambiente_id}
+                                options={tipoAmbientes}
+                                onChange={(e) => onDropdownChange(e, 'tipo_ambiente_id')}
+                                optionLabel="nombre"
+                                optionValue="id"
+                                placeholder="Select Tipo Ambiente"
+                            />
+                        </div>
+                        {/* <div className="field">
+                            <label htmlFor="escuela">Escuela</label>
+                            <Dropdown
+                                id="escuela"
+                                value={ambiente.escuela}
+                                options={escuelas}
+                                onChange={(e) => onDropdownChange(e, 'escuela')}
+                                optionLabel="id"
+                                placeholder="Select Escuela"
+                                optionValue="id"
+                            />
+                        </div> */}
+                        <div className="field">
+                            <label htmlFor="departamento">Departamento</label>
+                            <Dropdown
+                                id="departamento"
+                                value={ambiente.departamento_id}
+                                options={departamentos}
+                                onChange={(e) => onDropdownChange(e, 'departamento_id')}
+                                optionLabel="departamento"
+                                placeholder="Select Departamento"
+                                optionValue="id" // El valor del Dropdown será el ID del departamento
+                            />
                         </div>
                         <div className="field">
                             <label htmlFor="ubicacion">Ubicación</label>
-                            <InputText id="ubicacion" value={ambiente.ubicacion} onChange={(e) => onInputChange(e, 'ubicacion')} />
+                            <InputText id="ubicacion" value={ambiente.ubicacion} onChange={(e) => onInputChange(e, 'ubicacion')} required />
+                        </div>
+                        <div className="field">
+                            <label htmlFor="capacidad">Capacidad</label>
+                            <InputNumber id="capacidad" value={ambiente.capacidad} onValueChange={(e) => onInputChange(e, 'capacidad')} required />
                         </div>
                     </Dialog>
-
                     <Dialog visible={deleteAmbienteDialog} style={{ width: '450px' }} header="Confirm" modal footer={deleteAmbienteDialogFooter} onHide={hideDeleteAmbienteDialog}>
                         <div className="flex align-items-center justify-content-center">
                             <i className="pi pi-exclamation-triangle mr-3" style={{ fontSize: '2rem' }} />

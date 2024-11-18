@@ -5,9 +5,9 @@ export interface Ambiente {
     codigo: string;
     ubicacion: string;
     capacidad: number;
-    departamento: { id: number } | number | null;
-    escuela: { id: number } | number | null;
-    tipo_ambiente: { id: number } | number | null;
+    departamento_id:  number | null;
+    escuela_id:  number | null;
+    tipo_ambiente_id:  number | null;
 }
 
 // Get all Ambientes
