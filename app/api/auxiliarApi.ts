@@ -7,6 +7,12 @@ export interface Departamento {
     programa_de_estudios: number;
 }
 
+export interface Escuela {
+    id: number;
+    departamento: string;
+    programa_de_estudios: number;
+}
+
 
 // Obtener todos los ambientes
 export const getPeriodos = async () => {

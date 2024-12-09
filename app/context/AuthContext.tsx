@@ -18,8 +18,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         try {
             const response = await axiosInstance.post('auth/login', { username, password });
             const authToken = response.data.token;
-            await localStorage.setItem('authToken', authToken); // Guardar token
-            console.log("Token guardado en localStorage:", authToken);
+            localStorage.setItem('authToken', authToken); // Guardar token
             setIsAuthenticated(true);
             router.push('/');
             return null;

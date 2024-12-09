@@ -8,9 +8,12 @@ import { InputText } from 'primereact/inputtext';
 import { Dropdown } from 'primereact/dropdown';
 import { Toast } from 'primereact/toast';
 import { Toolbar } from 'primereact/toolbar';
-import { classNames } from 'primereact/utils';
 import { getActivos, createActivo, updateActivo, deleteActivo, Activo } from '@/app/api/activoApi';
 import { getAmbientes } from '@/app/api/ambienteApi'; // Asume que tienes una API para obtener ambientes
+import { getTipoActivos} from '@/app/api/tipoActivoApi';
+import { Departamento, Escuela} from '@/app/api/auxiliarApi';
+import { TipoAmbiente} from '@/app/api/tipoAmbienteApi';
+import { InputNumber } from 'primereact/inputnumber';
 
 interface Activo1 {
     id: number;
@@ -20,8 +23,12 @@ interface Activo1 {
     modelo: string;
     serie: string;
     estado: string;
+    gasto_energia: number;
+    tiempo_uso: number;
+    gasto_agua: number;
     observaciones: string;
     ambiente: Ambiente | null; // ID del ambiente relacionado
+    tipo_activo: TipoActivo | null;
 }
 
 interface Ambiente {
@@ -29,10 +36,19 @@ interface Ambiente {
     codigo: string;
     ubicacion: string;
     capacidad: number;
-    departamento_id:  number | null;
-    escuela_id:  number | null;
-    tipo_ambiente_id:  number | null;
+    encargado: string;
+    departamento: Departamento | null;
+    escuela:  Escuela | null;
+    edificio: number | null;
+    tipo_ambiente:  TipoAmbiente | null;
 }
+
+interface TipoActivo {
+    id: number;
+    nombre: string;
+    descripcion: string;
+}
+
 
 const ActivoPage = () => {
     const emptyActivo: Activo = {
@@ -44,12 +60,17 @@ const ActivoPage = () => {
         serie: '',
         estado: '',
         observaciones: '',
+        gasto_energia: 0,
+        tiempo_uso: 0,
+        gasto_agua: 0,
         ambiente_id: 0,
+        tipo_activo_id: 0,
     };
 
     const [activos, setActivos] = useState<Activo1[]>([]);
     const [ambientes, setAmbientes] = useState<Ambiente[]>([]);
     const [activoDialog, setActivoDialog] = useState(false);
+    const [tipoActivos, setTipoActivos] = useState<TipoActivo[]>([]);
     const [deleteActivoDialog, setDeleteActivoDialog] = useState(false);
     const [activo, setActivo] = useState<Activo>(emptyActivo);
     const [submitted, setSubmitted] = useState(false);
@@ -59,6 +80,7 @@ const ActivoPage = () => {
     useEffect(() => {
         fetchActivos();
         fetchAmbientes();
+        fetchTipoActivos();
     }, []);
 
     const fetchActivos = async () => {
@@ -81,6 +103,15 @@ const ActivoPage = () => {
             setAmbientes(formattedAmbientes);
         } catch (error) {
             console.error('Error fetching ambientes:', error);
+        }
+    };
+
+    const fetchTipoActivos = async () => {
+        try {
+            const response = await getTipoActivos();
+            setTipoActivos(response.data);
+        } catch (error) {
+            console.error('Error fetching tipo activos:', error);
         }
     };
 
@@ -110,9 +141,7 @@ const ActivoPage = () => {
                     updatedActivos = activos.map((a) => (a.id === response.data.id ? response.data : a));
                     toast.current?.show({ severity: 'success', summary: 'Successful', detail: 'Activo Updated', life: 3000 });
                 } else {
-                    console.log(activo);
                     const response = await createActivo(activo);
-                    console.log(activo);
                     updatedActivos = [...activos, response.data];
                     toast.current?.show({ severity: 'success', summary: 'Successful', detail: 'Activo Created', life: 3000 });
                 }
@@ -135,13 +164,16 @@ const ActivoPage = () => {
             modelo: activo1.modelo,
             serie: activo1.serie,
             estado: activo1.estado,
+            gasto_energia: activo1.gasto_energia,
+            tiempo_uso: activo1.tiempo_uso,
+            gasto_agua: activo1.gasto_agua,
             observaciones: activo1.observaciones,
             ambiente_id: activo1.ambiente ? activo1.ambiente.id : null, // Extraer el ID del ambiente
+            tipo_activo_id: activo1.tipo_activo ? activo1.tipo_activo.id : null,
         };
     };
 
     const editActivo = (activo: Activo1) => {
-        console.log(activo);
         const transformedActivo = transformActivo1ToActivo(activo);
         setActivo(transformedActivo);
         setActivoDialog(true);
@@ -179,8 +211,8 @@ const ActivoPage = () => {
         );
     };
 
-    const onInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, name: string) => {
-        const val = (e.target && e.target.value) || '';
+    const onInputChange = (e: any, name: string) => {
+        const val = e.value !== undefined ? e.value : e.target.value; // Maneja ambos casos
         setActivo({ ...activo, [name]: val });
     };
 
@@ -249,53 +281,86 @@ const ActivoPage = () => {
                         ></Column>
                     </DataTable>
 
-                    <Dialog visible={activoDialog} style={{ width: '450px' }} header="Activo Details" modal onHide={hideDialog} footer={ambienteDialogFooter}>
-                        <div className="field">
-                            <label htmlFor="codigo">Código</label>
-                            <InputText id="codigo" value={activo.codigo} onChange={(e) => onInputChange(e, 'codigo')} required />
+                    <Dialog
+                        visible={activoDialog}
+                        style={{ width: '60vw' }} // Ancho del 70% de la ventana
+                        header="Activo Details"
+                        modal
+                        onHide={hideDialog}
+                        footer={ambienteDialogFooter}
+                    >
+                        <div className="grid">
+                            <div className="col-5">
+                                <div className="field">
+                                    <label htmlFor="codigo">Código:</label>
+                                    <InputText id="codigo" value={activo.codigo} onChange={(e) => onInputChange(e, 'codigo')} required />
+                                </div>
+                                <div className="field">
+                                    <label htmlFor="descripcion">Descripción:</label>
+                                    <InputText id="descripcion" value={activo.descripcion} onChange={(e) => onInputChange(e, 'descripcion')} required />
+                                </div>
+                                <div className="field">
+                                    <label htmlFor="marca">Marca:</label>
+                                    <InputText id="marca" value={activo.marca} onChange={(e) => onInputChange(e, 'marca')} required />
+                                </div>
+                                <div className="field">
+                                    <label htmlFor="modelo">Modelo:</label>
+                                    <InputText id="modelo" value={activo.modelo} onChange={(e) => onInputChange(e, 'modelo')} required />
+                                </div>
+                                <div className="field">
+                                    <label htmlFor="serie">Serie:</label>
+                                    <InputText id="serie" value={activo.serie} onChange={(e) => onInputChange(e, 'serie')} required />
+                                </div>
+                                <div className="field">
+                                    <label htmlFor="estado">Estado:</label>
+                                    <InputText id="estado" value={activo.estado} onChange={(e) => onInputChange(e, 'estado')} required />
+                                </div>
+                            </div>
+                            <div className="col-7">
+                                <div className="field">
+                                    <label htmlFor="gasto_energia">Gasto Energía (Kw por hora):</label>
+                                    <InputNumber value={activo.gasto_energia} onValueChange={(e) => onInputChange(e, 'gasto_energia')} showButtons />
+                                </div>
+                                <div className="field">
+                                    <label htmlFor="tiempo_uso">Tiempo de uso (Horas por día):</label>
+                                    <InputNumber value={activo.tiempo_uso} onValueChange={(e) => onInputChange(e, 'tiempo_uso')} showButtons />
+                                </div>
+                                <div className="field">
+                                    <label htmlFor="gasto_agua">Gasto Agua (Litros por día):</label>
+                                    <InputNumber value={activo.gasto_agua} onValueChange={(e) => onInputChange(e, 'gasto_agua')} showButtons />
+                                </div>
+                                <div className="field">
+                                    <label htmlFor="tipo_activo">Tipo Activo:</label>
+                                    <Dropdown
+                                        id="tipo_activo"
+                                        value={activo.tipo_activo_id}
+                                        options={tipoActivos}
+                                        onChange={(e) => onDropdownChange(e, 'tipo_activo_id')}
+                                        optionValue="id"
+                                        optionLabel="nombre"
+                                        placeholder="Select Tipo Activo"
+                                    />
+                                </div>
+                                <div className="field">
+                                    <label htmlFor="ambiente">Ambiente</label>
+                                    <Dropdown
+                                        id="ambiente"
+                                        value={activo.ambiente_id}
+                                        options={ambientes}
+                                        onChange={(e) => onDropdownChange(e, 'ambiente_id')}
+                                        optionValue="id"
+                                        optionLabel="displayLabel"
+                                        placeholder="Select Ambiente"
+                                        filter
+                                        filterBy="displayLabel"
+                                        filterMatchMode="contains"
+                                        showClear
+                                    />
+                                </div>
+                            </div>
                         </div>
-                        <div className="field">
-                            <label htmlFor="descripcion">Descripción</label>
-                            <InputText id="descripcion" value={activo.descripcion} onChange={(e) => onInputChange(e, 'descripcion')} required />
-                        </div>
-                        <div className="field">
-                            <label htmlFor="marca">Marca</label>
-                            <InputText id="marca" value={activo.marca} onChange={(e) => onInputChange(e, 'marca')} required />
-                        </div>
-                        <div className="field">
-                            <label htmlFor="modelo">Modelo</label>
-                            <InputText id="modelo" value={activo.modelo} onChange={(e) => onInputChange(e, 'modelo')} required />
-                        </div>
-                        <div className="field">
-                            <label htmlFor="serie">Serie</label>
-                            <InputText id="serie" value={activo.serie} onChange={(e) => onInputChange(e, 'serie')} required />
-                        </div>
-                        <div className="field">
-                            <label htmlFor="estado">Estado</label>
-                            <InputText id="estado" value={activo.estado} onChange={(e) => onInputChange(e, 'estado')} required />
-                        </div>
-                        <div className="field">
-                            <label htmlFor="observaciones">Observaciones</label>
-                            <InputText id="observaciones" value={activo.observaciones} onChange={(e) => onInputChange(e, 'observaciones')} />
-                        </div>
-                        <div className="field">
-                            <label htmlFor="ambiente">Ambiente</label>
-                            <Dropdown
-                                id="ambiente"
-                                value={activo.ambiente_id}
-                                options={ambientes}
-                                onChange={(e) => onDropdownChange(e, 'ambiente_id')}
-                                optionValue="id"
-                                optionLabel="displayLabel"
-                                placeholder="Select Ambiente"
-                                filter
-                                filterBy="displayLabel"
-                                filterMatchMode="contains"
-                                showClear
-                            />
-                        </div>
-                        
                     </Dialog>
+
 
                 </div>
             </div>

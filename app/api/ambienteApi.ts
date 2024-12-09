@@ -3,8 +3,10 @@ import axiosInstance from '../utils/axiosInstance';
 export interface Ambiente {
     id?: number;
     codigo: string;
-    ubicacion: string;
     capacidad: number;
+    piso: number | null;
+    encargado: string;
+    edificio_id: number | null;
     departamento_id:  number | null;
     escuela_id:  number | null;
     tipo_ambiente_id:  number | null;

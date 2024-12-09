@@ -8,8 +8,12 @@ export interface Activo {
     modelo: string;
     serie: string;
     estado: string;
+    gasto_energia: number;
+    tiempo_uso: number;
+    gasto_agua: number;
     observaciones: string;
     ambiente_id: number | null; // ID del ambiente relacionado
+    tipo_activo_id: number | null;
 }
 
 // Get all Ambientes

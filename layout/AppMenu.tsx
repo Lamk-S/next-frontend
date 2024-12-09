@@ -26,20 +26,27 @@ const AppMenu = () => {
                     to: '/pages/tipoambiente'
                 },
                 {
-                    label: 'Ambiente',
+                    label: 'Ambientes',
                     icon: 'pi pi-fw pi-cog',
                     to: '/pages/ambiente'
                 },
                 {
-                    label: 'Gestionar Activo',
+                    label: 'Tipo Activo',
+                    icon: 'pi pi-fw pi-cog',
+                    to: '/pages/tipoactivo' 
+                },
+                {
+                    label: 'Activos',
                     icon: 'pi pi-fw pi-cog',
                     to: '/pages/activo'
                 },
                 {
-                    label: 'Mantener Activo',
+                    label: 'Edificios',
                     icon: 'pi pi-fw pi-cog',
-                    to: '/pages/cambioEstado'
-                }
+                    to: '/pages/edificio'
+                },
+
+
             ]
         }
     ];

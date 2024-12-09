@@ -8,12 +8,9 @@ axiosInstance.interceptors.request.use(
     (config) => {
         const authToken = localStorage.getItem('authToken');
 
-        console.log('Auth Token:', authToken);
-
         if (authToken) {
             config.headers['Authorization'] = authToken;
         }
-        console.log(config)
         return config;
     },
     (error) => Promise.reject(error)

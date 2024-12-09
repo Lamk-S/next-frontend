@@ -12,7 +12,8 @@ import { classNames } from 'primereact/utils';
 import axios, { AxiosError } from 'axios';
 import { getAmbientes, createAmbiente, updateAmbiente, deleteAmbiente, Ambiente} from '@/app/api/ambienteApi';
 import { getTipoAmbientes} from '@/app/api/tipoAmbienteApi';
-import { getEscuelas, getPeriodos, getDepartamentos, Departamento} from '@/app/api/auxiliarApi';
+import { getEdificios} from '@/app/api/edificioApi';
+import { getEscuelas, getDepartamentos, Departamento, Escuela} from '@/app/api/auxiliarApi';
 import { Dropdown } from 'primereact/dropdown';
 import { InputNumber } from 'primereact/inputnumber';
 
@@ -24,13 +25,24 @@ const AmbientePage = () => {
         descripcion: string;
     }
 
+    interface Edificio {
+        id: number;
+        nombre: string;
+        descripcion: string;
+        pisos: number;
+        ubicacion_lat: number;
+        ubicacion_lng: number;
+    }
+
     interface Ambiente1 {
         id: number;
         codigo: string;
-        escuela: any | null; // Si `escuela` tiene una estructura específica, defínela; en caso contrario, usa `any | null`.
+        escuela: Escuela | null; // Si `escuela` tiene una estructura específica, defínela; en caso contrario, usa `any | null`.
         departamento: Departamento | null;
-        ubicacion: string;
         capacidad: number;
+        piso: number | null;
+        encargado: string;
+        edificio: Edificio | null;
         tipo_ambiente: TipoAmbiente | null;
     }
 
@@ -40,15 +52,16 @@ const AmbientePage = () => {
         tipo_ambiente_id: null, // Almacena solo el ID
         escuela_id: null, // Puede ser null si no está relacionado
         departamento_id: null, // Puede ser null si no está relacionado
-        ubicacion: '',
+        edificio_id: null,
+        piso: 0,
+        encargado: '',
         capacidad: 0,
     };
-
-    
 
     const [ambientes, setAmbientes] = useState<Ambiente1[]>([]);
     const [escuelas, setEscuelas] = useState([]);
     const [departamentos, setDepartamentos] = useState([]);
+    const [edificios, setEdificios] = useState<Edificio[]>([]);
     const [ambienteDialog, setAmbienteDialog] = useState(false);
     const [deleteAmbienteDialog, setDeleteAmbienteDialog] = useState(false);
     const [ambiente, setAmbiente] = useState<Ambiente>(emptyAmbiente);
@@ -56,6 +69,32 @@ const AmbientePage = () => {
     const [submitted, setSubmitted] = useState(false);
     const toast = useRef<Toast>(null);
     const dt = useRef<DataTable<Ambiente1[]>>(null); // Reference for DataTable export
+    const [selectedType, setSelectedType] = useState<'escuela' | 'departamento' | ''>(''); // Estado para el tipo seleccionado
+    const [floorOptions, setFloorOptions] = useState<number[]>([]); // Opciones dinámicas de pisos
+
+    const handleTypeChange = (e: any) => {
+        setSelectedType(e.target.value); // Actualizar el estado según el radio seleccionado
+        setAmbiente({ ...ambiente, escuela_id: null, departamento_id: null }); // Limpiar los valores al cambiar
+    };
+
+    const handleBuildingChange = (e: { value: any }) => {
+        const selectedBuildingId = e.value;
+        const selectedBuilding = edificios.find((edificio) => edificio.id === selectedBuildingId);
+
+        setAmbiente({
+            ...ambiente,
+            edificio_id: selectedBuildingId,
+            piso: null, // Reinicia el piso al cambiar de edificio
+        });
+
+        if (selectedBuilding) {
+            // Generar las opciones de piso dinámicamente
+            const floors = Array.from({ length: selectedBuilding.pisos }, (_, index) => index + 1);
+            setFloorOptions(floors);
+        } else {
+            setFloorOptions([]); // Limpia las opciones de piso si no hay edificio seleccionado
+        }
+    };
 
     useEffect(() => {
         fetchAmbientes();
@@ -78,14 +117,11 @@ const AmbientePage = () => {
 
     const fetchAuxiliaryData = async () => {
         try {
-            const [escuelasRes, departamentosRes, tipoAmbientesRes] = await Promise.all([getEscuelas(), getDepartamentos(), getTipoAmbientes()]);
-            console.log(escuelasRes.data.results);
-            console.log(tipoAmbientesRes.data.results);
+            const [escuelasRes, departamentosRes, tipoAmbientesRes, edificiosRes] = await Promise.all([getEscuelas(), getDepartamentos(), getTipoAmbientes(), getEdificios()]);
             setEscuelas(escuelasRes.data.results); // Ajusta según la estructura de respuesta
             setDepartamentos(departamentosRes.data.results); // Ajusta según la estructura de respuesta
             setTipoAmbientes(tipoAmbientesRes.data.results);
-            console.log(escuelas);
-            console.log(tipoAmbientes);
+            setEdificios(edificiosRes.data);
         } catch (error) {
             console.error('Error fetching auxiliary data:', error);
             toast.current?.show({
@@ -113,7 +149,6 @@ const AmbientePage = () => {
 
     const saveAmbiente = async () => {
         setSubmitted(true);
-        console.log(ambiente);
         if (ambiente.codigo.trim() && ambiente.tipo_ambiente_id) {
             try {
                 let updatedAmbientes;
@@ -157,13 +192,14 @@ const AmbientePage = () => {
             tipo_ambiente_id: ambiente1.tipo_ambiente ? ambiente1.tipo_ambiente.id : null, // Extrae solo el ID
             escuela_id: ambiente1.escuela ? ambiente1.escuela.id : null, // Extrae solo el ID
             departamento_id: ambiente1.departamento ? ambiente1.departamento.id : null, // Extrae solo el ID
-            ubicacion: ambiente1.ubicacion,
+            edificio_id: ambiente1.edificio ? ambiente1.edificio.id : null,
             capacidad: ambiente1.capacidad,
+            piso: ambiente1.piso,
+            encargado: ambiente1.encargado,
         };
     };
 
     const editAmbiente = (ambiente: Ambiente1) => {
-        console.log(ambiente);
         const transformedAmbiente = transformAmbiente1ToAmbiente(ambiente);
         setAmbiente(transformedAmbiente);
         setAmbienteDialog(true);
@@ -210,18 +246,6 @@ const AmbientePage = () => {
         dt.current?.exportCSV();
     };
 
-    // const confirmDeleteSelected = () => {
-    //     setDeleteAmbienteDialog(true);
-    // };
-
-    // const leftToolbarTemplate = () => {
-    //     return (
-    //         <React.Fragment>
-    //             <Button label="New" icon="pi pi-plus" severity="success" className="mr-2" onClick={openNew} />
-    //             <Button label="Delete" icon="pi pi-trash" severity="danger" onClick={confirmDeleteSelected} disabled={!selectedAmbientes.length} />
-    //         </React.Fragment>
-    //     );
-    // };
 
     const rightToolbarTemplate = () => {
         return (
@@ -271,7 +295,6 @@ const AmbientePage = () => {
                         <Column field="tipo_ambiente.nombre" header="Tipo Ambiente" sortable></Column>
                         {/* <Column field="escuela.nombre" header="Escuela" sortable></Column> */}
                         <Column field="departamento.departamento" header="Departamento" sortable></Column>
-                        <Column field="ubicacion" header="Ubicación" sortable></Column>
                         <Column field="capacidad" header="Capacidad" sortable></Column>
                         <Column
                             header="Actions"
@@ -308,37 +331,104 @@ const AmbientePage = () => {
                                 placeholder="Select Tipo Ambiente"
                             />
                         </div>
-                        {/* <div className="field">
-                            <label htmlFor="escuela">Escuela</label>
+                        {/* Radio botones para elegir entre Escuela o Departamento */}
+                        <div className="field">
+                            <label>Tipo de Pertenencia:</label>
+                            <div className="flex align-items-center">
+                                <div className="mr-3">
+                                    <input
+                                        type="radio"
+                                        id="escuela"
+                                        name="type"
+                                        value="escuela"
+                                        onChange={handleTypeChange}
+                                        checked={selectedType === 'escuela'}
+                                    />
+                                    <label htmlFor="escuela" className="ml-2">
+                                        Escuela
+                                    </label>
+                                </div>
+                                <div>
+                                    <input
+                                        type="radio"
+                                        id="departamento"
+                                        name="type"
+                                        value="departamento"
+                                        onChange={handleTypeChange}
+                                        checked={selectedType === 'departamento'}
+                                    />
+                                    <label htmlFor="departamento" className="ml-2">
+                                        Departamento
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Mostrar Dropdown de Escuela solo si "Escuela" está seleccionado */}
+                        {selectedType === 'escuela' && (
+                            <div className="field">
+                                <label htmlFor="escuela">Escuela</label>
+                                <Dropdown
+                                    id="escuela"
+                                    value={ambiente.escuela_id}
+                                    options={escuelas}
+                                    onChange={(e) => onDropdownChange(e, 'escuela_id')}
+                                    optionLabel="programa_de_estudios.programa_de_estudios"
+                                    placeholder="Select Escuela"
+                                    optionValue="id"
+                                />
+                            </div>
+                        )}
+
+                        {/* Mostrar Dropdown de Departamento solo si "Departamento" está seleccionado */}
+                        {selectedType === 'departamento' && (
+                            <div className="field">
+                                <label htmlFor="departamento">Departamento</label>
+                                <Dropdown
+                                    id="departamento"
+                                    value={ambiente.departamento_id}
+                                    options={departamentos}
+                                    onChange={(e) => onDropdownChange(e, 'departamento_id')}
+                                    optionLabel="departamento"
+                                    placeholder="Select Departamento"
+                                    optionValue="id"
+                                />
+                            </div>
+                        )}
+                        {/* Dropdown de Edificio */}
+                        <div className="field">
+                            <label htmlFor="edificio">Edificio</label>
                             <Dropdown
-                                id="escuela"
-                                value={ambiente.escuela}
-                                options={escuelas}
-                                onChange={(e) => onDropdownChange(e, 'escuela')}
-                                optionLabel="id"
-                                placeholder="Select Escuela"
+                                id="edificio"
+                                value={ambiente.edificio_id}
+                                options={edificios}
+                                onChange={handleBuildingChange}
+                                optionLabel="nombre"
                                 optionValue="id"
-                            />
-                        </div> */}
-                        <div className="field">
-                            <label htmlFor="departamento">Departamento</label>
-                            <Dropdown
-                                id="departamento"
-                                value={ambiente.departamento_id}
-                                options={departamentos}
-                                onChange={(e) => onDropdownChange(e, 'departamento_id')}
-                                optionLabel="departamento"
-                                placeholder="Select Departamento"
-                                optionValue="id" // El valor del Dropdown será el ID del departamento
+                                placeholder="Select Edificio"
                             />
                         </div>
-                        <div className="field">
-                            <label htmlFor="ubicacion">Ubicación</label>
-                            <InputText id="ubicacion" value={ambiente.ubicacion} onChange={(e) => onInputChange(e, 'ubicacion')} required />
-                        </div>
+
+                        {/* Dropdown de Piso (visible solo si hay un edificio seleccionado) */}
+                        {ambiente.edificio_id && (
+                            <div className="field">
+                                <label htmlFor="piso">Piso</label>
+                                <Dropdown
+                                    id="piso"
+                                    value={ambiente.piso}
+                                    options={floorOptions}
+                                    onChange={(e) => onDropdownChange(e, 'piso')}
+                                    placeholder="Select Piso"
+                                />
+                            </div>
+                        )}
                         <div className="field">
                             <label htmlFor="capacidad">Capacidad</label>
-                            <InputNumber id="capacidad" value={ambiente.capacidad} onValueChange={(e) => onInputChange(e, 'capacidad')} required />
+                            <InputNumber id="capacidad" value={ambiente.capacidad} onValueChange={(e) => onInputChange(e, 'capacidad')} showButtons required />
+                        </div>
+                        <div className="field">
+                            <label htmlFor="encargado">Encargado:</label>
+                            <InputText id="encargado" value={ambiente.encargado} onChange={(e) => onInputChange(e, 'encargado')} required style={{ width: '80%' }}/>
                         </div>
                     </Dialog>
                     <Dialog visible={deleteAmbienteDialog} style={{ width: '450px' }} header="Confirm" modal footer={deleteAmbienteDialogFooter} onHide={hideDeleteAmbienteDialog}>
