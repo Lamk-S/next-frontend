@@ -70,7 +70,7 @@ const AmbientePage = () => {
     const [floorOptions, setFloorOptions] = useState<number[]>([]); // Opciones dinámicas de pisos
     const [detailsDialog, setDetailsDialog] = useState(false);
     const [activos, setActivos] = useState([]); // Almacena los activos relacionados
-    const [selectedAmbiente, setSelectedAmbiente] = useState<Ambiente1 | null>(null); // Ambiente seleccionado
+    const [selectedAmbiente, setSelectedAmbiente] = useState<Ambiente1>(); // Ambiente seleccionado
 
     const handleTypeChange = (e: any) => {
         setSelectedType(e.target.value); // Actualizar el estado según el radio seleccionado
@@ -308,8 +308,11 @@ const AmbientePage = () => {
                     >
                         <Column field="codigo" header="Código" sortable></Column>
                         <Column field="tipo_ambiente.nombre" header="Tipo Ambiente" sortable></Column>
-                        <Column field="escuela.programa_de_estudios.programa_de_estudios" header="Escuela" sortable></Column>
-                        <Column field="departamento.departamento" header="Departamento" sortable></Column>
+                        <Column
+                            header="Escuela/Departamento"
+                            body={(rowData) => rowData.escuela ? `Escuela de ${rowData.escuela.programa_de_estudios.programa_de_estudios}` : rowData.departamento?.departamento || ""}
+                            sortable
+                        />
                         <Column field="edificio.nombre" header="Edificio" sortable></Column>
                         <Column field="piso" header="Piso" sortable></Column>
                         <Column field="capacidad" header="Capacidad" sortable></Column>
@@ -464,6 +467,8 @@ const AmbientePage = () => {
                             <h5>Información del Ambiente</h5>
                             <p><b>Código:</b> {selectedAmbiente?.codigo}</p>
                             <p><b>Tipo:</b> {selectedAmbiente?.tipo_ambiente?.nombre || 'N/A'}</p>
+                            {/* <p><b>Escuela:</b> {selectedAmbiente?.escuela?.programa_de_estudios.programa_de_estudios}</p>
+                            <p><b>Departamento:</b> {selectedAmbiente?.departamento?.denominacion}</p> */}
                             <p><b>Capacidad:</b> {selectedAmbiente?.capacidad}</p>
                             <p><b>Encargado:</b> {selectedAmbiente?.encargado}</p>
                             <p><b>Edificio:</b> {selectedAmbiente?.edificio?.nombre || 'N/A'}</p>
