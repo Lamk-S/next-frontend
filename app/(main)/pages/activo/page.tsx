@@ -249,17 +249,16 @@ const ActivoPage = () => {
                         emptyMessage="No data found."
                     >
                         <Column field="codigo" header="Código" sortable></Column>
+                        <Column field="tipo_activo.nombre" header="Tipo de Activo" sortable></Column>
                         <Column field="descripcion" header="Descripción" sortable></Column>
                         <Column field="marca" header="Marca" sortable></Column>
                         <Column field="modelo" header="Modelo" sortable></Column>
                         <Column field="serie" header="Serie" sortable></Column>
                         <Column field="estado" header="Estado" sortable></Column>
                         <Column field="observaciones" header="Observaciones" sortable></Column>
-                        <Column
-                            field="ambiente.codigo"
-                            header="Ambiente"
-                            sortable
-                        ></Column>
+                        <Column field="gasto_energia" header="Gasto de Energia(Kw/h)" sortable></Column>
+                        <Column field="gasto_agua" header="Gasto de Agua (L/día)" sortable></Column>
+                        <Column field="ambiente.codigo" header="Ambiente" sortable ></Column>
                         <Column
                             header="Actions"
                             body={(rowData) => (

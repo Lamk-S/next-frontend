@@ -33,3 +33,7 @@ export const updateEdificio = async (id: number, data: Edificio) => {
 export const deleteEdificio = async (id: number) => {
     return await axiosInstance.delete(`recursos/edificio/${id}/`);
 };
+
+export const getEdificioDetails = async (id: number) => {
+    return await axiosInstance.get(`recursos/edificio-ambientes/${id}/`);
+};

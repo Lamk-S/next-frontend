@@ -4,13 +4,10 @@ import { Button } from 'primereact/button';
 import { Column } from 'primereact/column';
 import { DataTable } from 'primereact/datatable';
 import { Dialog } from 'primereact/dialog';
-import { FileUpload } from 'primereact/fileupload';
 import { InputText } from 'primereact/inputtext';
 import { Toast } from 'primereact/toast';
 import { Toolbar } from 'primereact/toolbar';
-import { classNames } from 'primereact/utils';
-import axios, { AxiosError } from 'axios';
-import { getAmbientes, createAmbiente, updateAmbiente, deleteAmbiente, Ambiente} from '@/app/api/ambienteApi';
+import { getAmbientes, createAmbiente, updateAmbiente, deleteAmbiente, getAmbienteDetails, Ambiente} from '@/app/api/ambienteApi';
 import { getTipoAmbientes} from '@/app/api/tipoAmbienteApi';
 import { getEdificios} from '@/app/api/edificioApi';
 import { getEscuelas, getDepartamentos, Departamento, Escuela} from '@/app/api/auxiliarApi';
@@ -71,6 +68,9 @@ const AmbientePage = () => {
     const dt = useRef<DataTable<Ambiente1[]>>(null); // Reference for DataTable export
     const [selectedType, setSelectedType] = useState<'escuela' | 'departamento' | ''>(''); // Estado para el tipo seleccionado
     const [floorOptions, setFloorOptions] = useState<number[]>([]); // Opciones dinámicas de pisos
+    const [detailsDialog, setDetailsDialog] = useState(false);
+    const [activos, setActivos] = useState([]); // Almacena los activos relacionados
+    const [selectedAmbiente, setSelectedAmbiente] = useState<Ambiente1 | null>(null); // Ambiente seleccionado
 
     const handleTypeChange = (e: any) => {
         setSelectedType(e.target.value); // Actualizar el estado según el radio seleccionado
@@ -146,6 +146,21 @@ const AmbientePage = () => {
     const hideDeleteAmbienteDialog = () => {
         setDeleteAmbienteDialog(false);
     };
+
+    const viewDetails = async (ambienteId: number) => {
+        try {
+            const response = await getAmbienteDetails(ambienteId); // Supuesto endpoint para obtener detalles
+            setSelectedAmbiente(response.data.ambiente);
+            setActivos(response.data.activos); // Lista de ambientes del edificio
+            setDetailsDialog(true);
+        } catch (error) {
+            toast.current?.show({ severity: 'error', summary: 'Error', detail: 'Could not fetch details.' });
+        }
+    };
+
+    const detailsDialogFooter = (
+        <Button label="Close" icon="pi pi-times" text onClick={() => setDetailsDialog(false)} />
+    );
 
     const saveAmbiente = async () => {
         setSubmitted(true);
@@ -293,13 +308,17 @@ const AmbientePage = () => {
                     >
                         <Column field="codigo" header="Código" sortable></Column>
                         <Column field="tipo_ambiente.nombre" header="Tipo Ambiente" sortable></Column>
-                        {/* <Column field="escuela.nombre" header="Escuela" sortable></Column> */}
+                        <Column field="escuela.programa_de_estudios.programa_de_estudios" header="Escuela" sortable></Column>
                         <Column field="departamento.departamento" header="Departamento" sortable></Column>
+                        <Column field="edificio.nombre" header="Edificio" sortable></Column>
+                        <Column field="piso" header="Piso" sortable></Column>
                         <Column field="capacidad" header="Capacidad" sortable></Column>
+                        <Column field="encargado" header="Encargado" sortable></Column>
                         <Column
                             header="Actions"
                             body={(rowData) => (
                                 <>
+                                    <Button icon="pi pi-eye" rounded severity="info" className="mr-2" onClick={() => viewDetails(rowData.id)} />
                                     <Button icon="pi pi-pencil" rounded severity="success" className="mr-2" onClick={() => editAmbiente(rowData)} />
                                     <Button icon="pi pi-trash" rounded severity="warning" onClick={() => confirmDeleteAmbiente(rowData)} />
                                 </>
@@ -431,6 +450,41 @@ const AmbientePage = () => {
                             <InputText id="encargado" value={ambiente.encargado} onChange={(e) => onInputChange(e, 'encargado')} required style={{ width: '80%' }}/>
                         </div>
                     </Dialog>
+
+                    <Dialog
+                        visible={detailsDialog}
+                        header={`Detalles del Ambiente: ${selectedAmbiente?.codigo || ''}`}
+                        style={{ width: '50vw' }}
+                        modal
+                        className="datatable-responsive"
+                        footer={detailsDialogFooter}
+                        onHide={() => setDetailsDialog(false)}
+                    >
+                        <div className="field">
+                            <h5>Información del Ambiente</h5>
+                            <p><b>Código:</b> {selectedAmbiente?.codigo}</p>
+                            <p><b>Tipo:</b> {selectedAmbiente?.tipo_ambiente?.nombre || 'N/A'}</p>
+                            <p><b>Capacidad:</b> {selectedAmbiente?.capacidad}</p>
+                            <p><b>Encargado:</b> {selectedAmbiente?.encargado}</p>
+                            <p><b>Edificio:</b> {selectedAmbiente?.edificio?.nombre || 'N/A'}</p>
+                        </div>
+                        <h4>Activos</h4>
+                        {activos.length ? (
+                            <DataTable value={activos} responsiveLayout="scroll" paginator rows={10} emptyMessage="No hay activos registrados.">
+                                <Column field="codigo" header="Código" sortable />
+                                <Column field="descripcion" header="Descripcion" sortable />
+                                <Column field="tipo_activo.nombre" header="Tipo de Activo" sortable />
+                                <Column field="marca" header="Marca" sortable />
+                                <Column field="modelo" header="Modelo" sortable />
+                                <Column field="gasto_energia" header="Gasto de Energia(Kw/h)" sortable/>
+                                <Column field="gasto_agua" header="Gasto de Agua (L/día)" sortable/>
+                                <Column field="estado" header="Estado" sortable />
+                            </DataTable>
+                        ) : (
+                            <p>No hay activos registrados para este ambiente.</p>
+                        )}
+                    </Dialog>
+
                     <Dialog visible={deleteAmbienteDialog} style={{ width: '450px' }} header="Confirm" modal footer={deleteAmbienteDialogFooter} onHide={hideDeleteAmbienteDialog}>
                         <div className="flex align-items-center justify-content-center">
                             <i className="pi pi-exclamation-triangle mr-3" style={{ fontSize: '2rem' }} />

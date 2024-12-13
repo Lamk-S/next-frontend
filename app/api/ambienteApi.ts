@@ -36,3 +36,7 @@ export const updateAmbiente = async (id: number, data: Ambiente) => {
 export const deleteAmbiente = async (id: number) => {
     return await axiosInstance.delete(`recursos/ambiente/${id}/`);
 };
+
+export const getAmbienteDetails = async (id: number) => {
+    return await axiosInstance.get(`recursos/ambiente-activos/${id}/`);
+};
