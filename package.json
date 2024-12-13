@@ -26,7 +26,7 @@
     "react-transition-group": "^4.4.5",
     "sakai-react": "file:",
     "sass-loader": "^16.0.3",
-    "typescript": "5.1.3"
+    "typescript": "^5.7.2"
   },
   "devDependencies": {
     "eslint": "8.43.0",
