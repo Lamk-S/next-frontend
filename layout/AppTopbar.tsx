@@ -5,12 +5,29 @@ import { classNames } from 'primereact/utils';
 import React, { forwardRef, useContext, useImperativeHandle, useRef } from 'react';
 import { AppTopbarRef } from '@/types';
 import { LayoutContext } from './context/layoutcontext';
+import { Menu } from 'primereact/menu';
+import { logout } from '@/app/api/authApi'; // Importar la función de logout
 
 const AppTopbar = forwardRef<AppTopbarRef>((props, ref) => {
     const { layoutConfig, layoutState, onMenuToggle, showProfileSidebar } = useContext(LayoutContext);
     const menubuttonRef = useRef(null);
     const topbarmenuRef = useRef(null);
     const topbarmenubuttonRef = useRef(null);
+
+    // Menú del submenú "Profile"
+    const profileMenuRef = useRef<Menu>(null);
+
+    // Opciones del submenú "Profile"
+    const profileMenuItems = [
+        {
+            label: 'Logout',
+            icon: 'pi pi-sign-out',
+            command: () => {
+                logout();
+                window.location.href = '/auth/login'; // Redirigir al usuario a la página de login
+            }
+        }
+    ];
 
     useImperativeHandle(ref, () => ({
         menubutton: menubuttonRef.current,
@@ -38,11 +55,19 @@ const AppTopbar = forwardRef<AppTopbarRef>((props, ref) => {
                     <i className="pi pi-calendar"></i>
                     <span>Calendar</span>
                 </button>
-                <button type="button" className="p-link layout-topbar-button">
-                    <i className="pi pi-user"></i>
-                    <span>Profile</span>
-                </button>
-                <Link href="/documentation">
+                {/* Submenú para Profile */}
+                <div>
+                    <button
+                        type="button"
+                        className="p-link layout-topbar-button"
+                        onClick={(event) => profileMenuRef.current?.toggle(event)}
+                    >
+                        <i className="pi pi-user"></i>
+                        <span>Profile</span>
+                    </button>
+                    <Menu model={profileMenuItems} popup ref={profileMenuRef} />
+                </div>
+                <Link href="#">
                     <button type="button" className="p-link layout-topbar-button">
                         <i className="pi pi-cog"></i>
                         <span>Settings</span>

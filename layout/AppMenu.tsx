@@ -45,8 +45,18 @@ const AppMenu = () => {
                     icon: 'pi pi-fw pi-cog',
                     to: '/pages/edificio'
                 },
-
-
+            ]
+        },
+        {
+            label: 'Reportes',
+            icon: 'pi pi-fw pi-file',
+            to: '/reports',
+            items: [
+                {
+                    label: 'Reporte de Ambientes',
+                    icon: 'pi pi-fw pi-file-pdf',
+                    to: '/reports/ambientes'
+                }
             ]
         }
     ];
