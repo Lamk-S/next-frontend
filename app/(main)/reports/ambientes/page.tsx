@@ -8,41 +8,29 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 const ReporteAmbientes = () => {
-    const [ambientesPorEntidad, setAmbientesPorEntidad] = useState<Record<string, any[]>>({});
+    const [ambientes, setAmbientes] = useState<any[]>([]);
+    const [filteredAmbientes, setFilteredAmbientes] = useState<any[]>([]);
+    const [filtros, setFiltros] = useState({
+        tipoEntidad: 'todos', // "todos", "escuelas", "departamentos"
+        departamento: '',
+        escuela: '',
+        tipoAmbiente: '',
+    });
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const fetchAmbientes = async () => {
             try {
                 const data = await getAmbientesReporte();
-    
-                // Agrupar ambientes por entidad
-                const agrupados = data.reduce((acc: Record<string, any[]>, ambiente: any) => {
-                    const entidad = ambiente.escuela_nombre
-                        ? `ESCUELA PROFESIONAL DE ${ambiente.escuela_nombre.toUpperCase()}`
-                        : ambiente.departamento_nombre
-                        ? `${ambiente.departamento_nombre.toUpperCase()}`
-                        : 'SIN ESCUELA/DEPARTAMENTO';
-    
-                    // Asegurarse de que el campo tipo_ambiente esté presente
-                    const ambienteNormalizado = {
-                        ...ambiente,
-                        tipo_ambiente: ambiente.tipo_ambiente__nombre, // Normalizamos el nombre del tipo de ambiente
-                    };
-    
-                    if (!acc[entidad]) acc[entidad] = [];
-                    acc[entidad].push(ambienteNormalizado);
-                    return acc;
-                }, {});
-    
-                setAmbientesPorEntidad(agrupados);
+                setAmbientes(data);
+                setFilteredAmbientes(data); // Mostrar todos los datos inicialmente
             } catch (error) {
                 console.error('Error al cargar los ambientes:', error);
             } finally {
                 setLoading(false);
             }
         };
-    
+
         fetchAmbientes();
     }, []);
 
@@ -51,38 +39,91 @@ const ReporteAmbientes = () => {
             TALLER: 'TALLERES',
         };
         return specialPlurals[word] || word + 'S';
-    };    
+    };
+
+    // Aplicar filtros automáticamente al cambiar filtros
+    useEffect(() => {
+        const { tipoEntidad, departamento, escuela, tipoAmbiente } = filtros;
+        const filtered = ambientes.filter((ambiente) => {
+            const esEscuela = Boolean(ambiente.escuela_nombre);
+            const esDepartamento = Boolean(ambiente.departamento_nombre);
+
+            return (
+                // Filtrar por tipo de entidad
+                (tipoEntidad === 'todos' ||
+                    (tipoEntidad === 'escuelas' && esEscuela) ||
+                    (tipoEntidad === 'departamentos' && esDepartamento)) &&
+                // Filtrar por departamento
+                (departamento ? ambiente.departamento_nombre === departamento : true) &&
+                // Filtrar por escuela
+                (escuela ? ambiente.escuela_nombre === escuela : true) &&
+                // Filtrar por tipo de ambiente
+                (tipoAmbiente ? ambiente.tipo_ambiente__nombre === tipoAmbiente : true)
+            );
+        });
+
+        setFilteredAmbientes(filtered);
+    }, [filtros, ambientes]);
+
+    const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const { name, value } = e.target;
+        setFiltros((prev) => ({
+            ...prev,
+            [name]: value,
+        }));
+    };
+
+    const handleTipoEntidadChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        setFiltros((prev) => ({
+            ...prev,
+            tipoEntidad: e.target.value,
+            departamento: '', // Reiniciar filtro de departamento
+            escuela: '', // Reiniciar filtro de escuela
+        }));
+    };
 
     const generatePDF = () => {
         const doc = new jsPDF();
-    
-        // Encabezado principal del reporte
+
         doc.setFontSize(18);
         doc.text('REPORTE DE AMBIENTES', 105, 15, { align: 'center' });
-        doc.setDrawColor(0, 0, 0); // Color negro para líneas
-        doc.line(10, 20, 200, 20); // Línea decorativa
-    
-        let currentY = 30; // Coordenada Y inicial
-        const pageHeight = doc.internal.pageSize.height; // Altura de la página
-    
+        doc.line(10, 20, 200, 20);
+
+        let currentY = 30;
+        const pageHeight = doc.internal.pageSize.height;
+
+        const ambientesPorEntidad = filteredAmbientes.reduce((acc: Record<string, any[]>, ambiente) => {
+            const entidad = ambiente.escuela_nombre
+                ? `ESCUELA PROFESIONAL DE ${ambiente.escuela_nombre.toUpperCase()}`
+                : ambiente.departamento_nombre
+                ? `${ambiente.departamento_nombre.toUpperCase()}`
+                : 'SIN ESCUELA/DEPARTAMENTO';
+
+            if (!acc[entidad]) acc[entidad] = [];
+            acc[entidad].push({
+                ...ambiente,
+                tipo_ambiente: ambiente.tipo_ambiente__nombre,
+            });
+
+            return acc;
+        }, {});
+
         Object.entries(ambientesPorEntidad).forEach(([entidad, ambientes]) => {
             if (currentY + 20 > pageHeight) {
                 doc.addPage();
                 currentY = 30;
             }
-    
-            // Crear tabla con encabezado de entidad
+
             autoTable(doc, {
                 startY: currentY,
                 body: [
-                    // Encabezado de la entidad como parte de la tabla
                     [
                         {
                             content: entidad,
                             colSpan: 3,
                             styles: {
-                                fillColor: [220, 220, 220], // Gris claro
-                                textColor: 0, // Negro
+                                fillColor: [220, 220, 220],
+                                textColor: 0,
                                 halign: 'center' as const,
                                 fontStyle: 'bold',
                             },
@@ -90,20 +131,17 @@ const ReporteAmbientes = () => {
                     ],
                 ],
                 styles: { fontSize: 12, lineWidth: 0.2 },
-                margin: { left: 10, right: 10 },
-                tableWidth: 'auto',
                 theme: 'grid',
             });
-    
+
             currentY = doc.lastAutoTable.finalY + 10;
-    
+
             [...new Set(ambientes.map((a) => pluralize(a.tipo_ambiente.toUpperCase())))].forEach((tipo) => {
                 if (currentY + 15 > pageHeight) {
                     doc.addPage();
                     currentY = 30;
                 }
-    
-                // Subencabezado del tipo de ambiente como parte de la tabla
+
                 autoTable(doc, {
                     startY: currentY,
                     body: [
@@ -112,8 +150,8 @@ const ReporteAmbientes = () => {
                                 content: tipo,
                                 colSpan: 3,
                                 styles: {
-                                    fillColor: [41, 128, 185], // Azul corporativo
-                                    textColor: 255, // Blanco
+                                    fillColor: [41, 128, 185],
+                                    textColor: 255,
                                     halign: 'center' as const,
                                     fontStyle: 'italic',
                                 },
@@ -121,32 +159,21 @@ const ReporteAmbientes = () => {
                         ],
                     ],
                     styles: { fontSize: 12, lineWidth: 0.2 },
-                    margin: { left: 10, right: 10 },
-                    tableWidth: 'auto',
                     theme: 'grid',
                 });
-    
+
                 currentY = doc.lastAutoTable.finalY + 10;
-    
+
                 const ambientesPorTipo = ambientes.filter((a) => pluralize(a.tipo_ambiente.toUpperCase()) === tipo);
-                const tableHeight = 10 + (ambientesPorTipo.length + 1) * 10; // Incluye encabezados
-    
-                if (currentY + tableHeight > pageHeight) {
-                    doc.addPage();
-                    currentY = 30;
-                }
-    
-                // Crear la tabla con encabezado incluido como parte de la tabla
+
                 autoTable(doc, {
                     startY: currentY,
                     body: [
-                        // Encabezado de la tabla
                         [
-                            { content: 'CÓDIGO', styles: { fillColor: [41, 128, 185], textColor: 255, halign: 'center' as const, fontStyle: 'bold' } },
-                            { content: 'CAPACIDAD', styles: { fillColor: [41, 128, 185], textColor: 255, halign: 'center' as const, fontStyle: 'bold' } },
-                            { content: 'RESPONSABLE', styles: { fillColor: [41, 128, 185], textColor: 255, halign: 'center' as const, fontStyle: 'bold' } },
+                            { content: 'CÓDIGO', styles: { halign: 'center' as const, fontStyle: 'bold' } },
+                            { content: 'CAPACIDAD', styles: { halign: 'center' as const, fontStyle: 'bold' } },
+                            { content: 'RESPONSABLE', styles: { halign: 'center' as const, fontStyle: 'bold' } },
                         ],
-                        // Filas de datos
                         ...ambientesPorTipo.map((ambiente) => [
                             { content: ambiente.codigo, styles: { halign: 'center' as const } },
                             { content: ambiente.capacidad.toString(), styles: { halign: 'center' as const } },
@@ -155,16 +182,13 @@ const ReporteAmbientes = () => {
                     ],
                     styles: { fontSize: 10, cellPadding: 4, lineWidth: 0.2 },
                     margin: { left: 10, right: 10 },
-                    tableWidth: 'auto',
                     theme: 'grid',
                 });
-    
-                // Actualizar posición Y después de la tabla
+
                 currentY = doc.lastAutoTable.finalY + 10;
             });
         });
-    
-        // Guardar el archivo PDF
+
         doc.save('reporte_ambientes.pdf');
     };
 
@@ -183,7 +207,57 @@ const ReporteAmbientes = () => {
                 </button>
             </div>
 
-            {Object.entries(ambientesPorEntidad).map(([entidad, ambientes]) => (
+            {/* Barra de filtros */}
+            <div className="card mb-4 p-3 grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+                <select name="tipoEntidad" onChange={handleTipoEntidadChange} className="p-inputtext p-component">
+                    <option value="todos">Todas las Entidades</option>
+                    <option value="escuelas">Solo Escuelas</option>
+                    <option value="departamentos">Solo Departamentos</option>
+                </select>
+                {filtros.tipoEntidad === 'departamentos' && (
+                    <select name="departamento" onChange={handleFilterChange} className="p-inputtext p-component">
+                        <option value="">Todos los Departamentos</option>
+                        {Array.from(new Set(ambientes.map((a) => a.departamento_nombre))).map((departamento) => (
+                            <option key={departamento} value={departamento}>
+                                {departamento}
+                            </option>
+                        ))}
+                    </select>
+                )}
+                {filtros.tipoEntidad === 'escuelas' && (
+                    <select name="escuela" onChange={handleFilterChange} className="p-inputtext p-component">
+                        <option value="">Todas las Escuelas</option>
+                        {Array.from(new Set(ambientes.map((a) => a.escuela_nombre))).map((escuela) => (
+                            <option key={escuela} value={escuela}>
+                                {escuela}
+                            </option>
+                        ))}
+                    </select>
+                )}
+                <select name="tipoAmbiente" onChange={handleFilterChange} className="p-inputtext p-component">
+                    <option value="">Todos los Tipos de Ambiente</option>
+                    {Array.from(new Set(ambientes.map((a) => a.tipo_ambiente__nombre))).map((tipo) => (
+                        <option key={tipo} value={tipo}>
+                            {tipo}
+                        </option>
+                    ))}
+                </select>
+            </div>
+
+            {/* Mostrar datos filtrados */}
+            {Object.entries(
+                filteredAmbientes.reduce((acc: Record<string, any[]>, ambiente) => {
+                    const entidad = ambiente.escuela_nombre
+                        ? `ESCUELA PROFESIONAL DE ${ambiente.escuela_nombre.toUpperCase()}`
+                        : ambiente.departamento_nombre
+                        ? `${ambiente.departamento_nombre.toUpperCase()}`
+                        : 'SIN ESCUELA/DEPARTAMENTO';
+
+                    if (!acc[entidad]) acc[entidad] = [];
+                    acc[entidad].push(ambiente);
+                    return acc;
+                }, {})
+            ).map(([entidad, ambientes]) => (
                 <div key={entidad} className="mb-5 card p-4">
                     <h2 className="text-2xl font-bold text-center mb-3">{entidad}</h2>
                     {[...new Set(ambientes.map((a) => pluralize(a.tipo_ambiente.toUpperCase())))].map((tipo) => (
