@@ -16,7 +16,7 @@ const AppMenu = () => {
             items: [{ label: 'Dashboard', icon: 'pi pi-fw pi-home', to: '/' }]
         },
         {
-            label: 'Pages',
+            label: 'Mantenedores',
             icon: 'pi pi-fw pi-briefcase',
             to: '/pages',
             items: [
@@ -56,6 +56,18 @@ const AppMenu = () => {
                     label: 'Reporte de Ambientes',
                     icon: 'pi pi-fw pi-file-pdf',
                     to: '/reports/ambientes'
+                }
+            ]
+        },
+        {
+            label: 'Mapeo',
+            icon: 'pi pi-fw pi-file',
+            to: '/explore',
+            items: [
+                {
+                    label: 'Activos',
+                    icon: 'pi pi-fw pi-th-large',
+                    to: '/explore'
                 }
             ]
         }
